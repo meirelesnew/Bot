@@ -1,20 +1,33 @@
 import os
 import subprocess
 import logging
+import threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.environ["8919336807:AAE9M8wA_iZD27xTxX3jfuOAgBxRebiqktQ"]  # configurado nas variáveis de ambiente do Render/Railway
+TOKEN = os.environ["8919336807:AAF4iiT5pFhGrzPVgaXOdv-SbeKeDNoysU4"]
 PIPER_BIN = "./piper/piper"
 MODEL_PATH = "minha_voz.onnx"
 
+# --- Servidor Flask só pra responder o health check do Render ---
+web_app = Flask(__name__)
+
+@web_app.route("/")
+def home():
+    return "Bot rodando!"
+
+def rodar_servidor_web():
+    porta = int(os.environ.get("PORT", 10000))
+    web_app.run(host="0.0.0.0", port=porta)
+
+# --- Lógica do bot do Telegram (igual antes) ---
 async def gerar_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text
     saida = "saida.wav"
 
-    # Roda o Piper: texto entra via stdin, áudio sai em arquivo
     processo = subprocess.run(
         [PIPER_BIN, "-m", MODEL_PATH, "-f", saida],
         input=texto.encode("utf-8"),
@@ -31,8 +44,12 @@ async def gerar_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     os.remove(saida)
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gerar_audio))
+def rodar_bot():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gerar_audio))
+    app.run_polling()
 
 if __name__ == "__main__":
-    app.run_polling()
+    # Roda o servidor web numa thread separada, e o bot na principal
+    threading.Thread(target=rodar_servidor_web, daemon=True).start()
+    rodar_bot()

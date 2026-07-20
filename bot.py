@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filte
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]  # configurado nas variáveis de ambiente do Render/Railway
+TOKEN = os.environ["8919336807:AAE9M8wA_iZD27xTxX3jfuOAgBxRebiqktQ"]  # configurado nas variáveis de ambiente do Render/Railway
 PIPER_BIN = "./piper/piper"
 MODEL_PATH = "minha_voz.onnx"
 

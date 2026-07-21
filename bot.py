@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filte
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.environ["8919336807:AAF4iiT5pFhGrzPVgaXOdv-SbeKeDNoysU4"]
+TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 PIPER_BIN = "./piper/piper"
 MODEL_PATH = "minha_voz.onnx"
 

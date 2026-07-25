@@ -4,8 +4,11 @@ import logging
 import threading
 import zipfile
 from flask import Flask
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, MessageHandler, CommandHandler,
+    CallbackQueryHandler, ContextTypes, filters
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -80,11 +83,47 @@ async def exportar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     os.remove(caminho_zip)
 
+# --- NOVO: comando /limpar - apaga as gravações coletadas, com confirmação ---
+async def limpar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    arquivos = os.listdir(PASTA_GRAVACOES)
+
+    if not arquivos:
+        await update.message.reply_text("Nenhuma gravação pra limpar — a pasta já está vazia.")
+        return
+
+    total = len(arquivos)
+    botoes = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Sim, apagar tudo", callback_data="confirmar_limpeza"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="cancelar_limpeza"),
+        ]
+    ])
+    await update.message.reply_text(
+        f"⚠️ Isso vai apagar {total} gravação(ões) salva(s) em {PASTA_GRAVACOES}.\n"
+        "Essa ação não tem volta. Confirma?",
+        reply_markup=botoes
+    )
+
+# --- NOVO: trata o clique nos botões de confirmação do /limpar ---
+async def botao_limpar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "confirmar_limpeza":
+        arquivos = os.listdir(PASTA_GRAVACOES)
+        for nome in arquivos:
+            os.remove(os.path.join(PASTA_GRAVACOES, nome))
+        await query.edit_message_text(f"🗑️ {len(arquivos)} gravação(ões) apagada(s) com sucesso.")
+    else:
+        await query.edit_message_text("Cancelado — nenhuma gravação foi apagada.")
+
 def rodar_bot():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gerar_audio))
     app.add_handler(MessageHandler(filters.VOICE, salvar_gravacao))
     app.add_handler(CommandHandler("exportar", exportar))
+    app.add_handler(CommandHandler("limpar", limpar))
+    app.add_handler(CallbackQueryHandler(botao_limpar, pattern="^(confirmar_limpeza|cancelar_limpeza)$"))
     app.run_polling()
 
 if __name__ == "__main__":
